@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Play, Pause, RotateCcw, X } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Play, Pause, RotateCcw, X, Volume2, VolumeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -10,10 +10,46 @@ interface ExerciseTimerProps {
   onComplete: () => void;
 }
 
+// Beep sound using Web Audio API
+const playBeepSound = () => {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    
+    // Play 3 beeps
+    [0, 0.2, 0.4].forEach((delay) => {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.value = 880; // A5 note
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime + delay);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + delay + 0.15);
+      
+      oscillator.start(audioContext.currentTime + delay);
+      oscillator.stop(audioContext.currentTime + delay + 0.15);
+    });
+  } catch (error) {
+    console.log('Audio not supported');
+  }
+};
+
+// Vibration pattern
+const triggerVibration = () => {
+  if ('vibrate' in navigator) {
+    navigator.vibrate([200, 100, 200, 100, 200]); // vibrate-pause-vibrate-pause-vibrate
+  }
+};
+
 export const ExerciseTimer = ({ duration, exerciseName, onClose, onComplete }: ExerciseTimerProps) => {
   const [timeLeft, setTimeLeft] = useState(duration);
   const [isRunning, setIsRunning] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const hasNotified = useRef(false);
 
   const percentage = ((duration - timeLeft) / duration) * 100;
 
@@ -38,10 +74,22 @@ export const ExerciseTimer = ({ duration, exerciseName, onClose, onComplete }: E
     };
   }, [isRunning, timeLeft]);
 
+  // Trigger sound and vibration when timer completes
+  useEffect(() => {
+    if (isFinished && !hasNotified.current) {
+      hasNotified.current = true;
+      if (soundEnabled) {
+        playBeepSound();
+      }
+      triggerVibration();
+    }
+  }, [isFinished, soundEnabled]);
+
   const handleReset = useCallback(() => {
     setTimeLeft(duration);
     setIsRunning(false);
     setIsFinished(false);
+    hasNotified.current = false;
   }, [duration]);
 
   const formatTime = (seconds: number): string => {
@@ -109,6 +157,16 @@ export const ExerciseTimer = ({ duration, exerciseName, onClose, onComplete }: E
 
         {/* Controls */}
         <div className="flex items-center justify-center gap-4">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className="h-12 w-12 rounded-full"
+            title={soundEnabled ? "Mute sound" : "Enable sound"}
+          >
+            {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+          </Button>
+
           <Button
             variant="outline"
             size="icon"
