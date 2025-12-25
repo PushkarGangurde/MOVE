@@ -63,6 +63,15 @@ export const ExerciseItem = ({ exercise, isCompleted, onToggle }: ExerciseItemPr
     setShowTimer(true);
   };
 
+  const handleTimerClose = () => {
+    setShowTimer(false);
+  };
+
+  const handleTimerComplete = () => {
+    onToggle();
+    setShowTimer(false);
+  };
+
   return (
     <>
       <div
@@ -121,10 +130,11 @@ export const ExerciseItem = ({ exercise, isCompleted, onToggle }: ExerciseItemPr
 
       {showTimer && timerDuration && (
         <ExerciseTimer
+          key={exercise.id}
           duration={timerDuration}
           exerciseName={exercise.name}
-          onClose={() => setShowTimer(false)}
-          onComplete={onToggle}
+          onClose={handleTimerClose}
+          onComplete={handleTimerComplete}
         />
       )}
     </>

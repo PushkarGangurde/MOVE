@@ -43,7 +43,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border/50">
-        <div className="container max-w-4xl mx-auto px-4 py-4">
+        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
               <Dumbbell className="w-5 h-5 text-primary" />
@@ -57,11 +57,11 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container max-w-4xl mx-auto px-4 py-6">
+      <main className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Desktop: Side-by-side layout, Mobile: Stacked */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="flex flex-col lg:flex-row gap-6">
           {/* Weekly Summary - Sidebar on desktop */}
-          <div className="lg:col-span-4 xl:col-span-3">
+          <div className="w-full lg:w-80 lg:shrink-0">
             <div className="lg:sticky lg:top-24">
               <WeeklySummary
                 completedDays={weekProgress.completedDays}
@@ -73,23 +73,26 @@ const Index = () => {
           </div>
 
           {/* Day Cards - Main content area */}
-          <div className="lg:col-span-8 xl:col-span-9 space-y-3">
-            {sortedDays.map((day, index) => (
-              <div
-                key={day.id}
-                className="animate-fade-in"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <DayCard
-                  day={day}
-                  progress={getDayProgress(day.id)}
-                  isCompleted={isDayCompleted(day.id)}
-                  isExerciseCompleted={isExerciseCompleted}
-                  onToggleExercise={toggleExercise}
-                  isToday={day.id === todayId}
-                />
-              </div>
-            ))}
+          <div className="flex-1 min-w-0">
+            {/* Grid for larger screens */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              {sortedDays.map((day, index) => (
+                <div
+                  key={day.id}
+                  className="animate-fade-in"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <DayCard
+                    day={day}
+                    progress={getDayProgress(day.id)}
+                    isCompleted={isDayCompleted(day.id)}
+                    isExerciseCompleted={isExerciseCompleted}
+                    onToggleExercise={toggleExercise}
+                    isToday={day.id === todayId}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
