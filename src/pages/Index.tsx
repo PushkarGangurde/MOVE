@@ -1,4 +1,4 @@
-import { Dumbbell } from 'lucide-react';
+import { Activity } from 'lucide-react';
 import { workoutPlan } from '@/data/workoutPlan';
 import { useWorkoutProgress } from '@/hooks/useWorkoutProgress';
 import { DayCard } from '@/components/DayCard';
@@ -45,12 +45,12 @@ const Index = () => {
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border/50">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Dumbbell className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+              <Activity className="w-5 h-5 text-primary-foreground" strokeWidth={2.5} />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-foreground">Pushkar Ji</h1>
-              <p className="text-xs text-muted-foreground">7-Day Home Workout Plan</p>
+              <h1 className="text-xl font-bold tracking-tight text-foreground">MOVE</h1>
+              <p className="text-xs text-muted-foreground">7-Day Workout Plan</p>
             </div>
           </div>
         </div>
