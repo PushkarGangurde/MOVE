@@ -55,7 +55,17 @@ const Index = () => {
                 <p className="text-xs text-muted-foreground">7-Day Workout Plan</p>
               </div>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <a
+                href="https://7to14.vercel.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 text-sm font-medium rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+              >
+                7to14
+              </a>
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </header>
