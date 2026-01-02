@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Check, Timer } from 'lucide-react';
+import { Check, Timer, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Exercise } from '@/types/workout';
 import { ExerciseTimer } from './ExerciseTimer';
+import { ExerciseVideoModal } from './ExerciseVideoModal';
+import { getExerciseVideoId } from '@/data/exerciseVideos';
 
 interface ExerciseItemProps {
   exercise: Exercise;
@@ -46,9 +48,11 @@ const isTimedExercise = (reps: string): boolean => {
 export const ExerciseItem = ({ exercise, isCompleted, onToggle }: ExerciseItemProps) => {
   const [isAnimating, setIsAnimating] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
   
   const timerDuration = parseTimeToSeconds(exercise.reps);
   const hasTimed = timerDuration !== null;
+  const videoId = getExerciseVideoId(exercise.name);
 
   const handleClick = () => {
     if (!isCompleted) {
@@ -70,6 +74,11 @@ export const ExerciseItem = ({ exercise, isCompleted, onToggle }: ExerciseItemPr
   const handleTimerComplete = () => {
     onToggle();
     setShowTimer(false);
+  };
+
+  const handleVideoClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowVideo(true);
   };
 
   return (
@@ -113,19 +122,35 @@ export const ExerciseItem = ({ exercise, isCompleted, onToggle }: ExerciseItemPr
           </p>
         </button>
 
-        {hasTimed && !isCompleted && (
-          <button
-            onClick={handleTimerClick}
-            className={cn(
-              'p-2 rounded-lg transition-all duration-200 shrink-0',
-              'bg-primary/10 text-primary hover:bg-primary/20',
-              'flex items-center justify-center'
-            )}
-            title="Start timer"
-          >
-            <Timer className="w-4 h-4" />
-          </button>
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {videoId && (
+            <button
+              onClick={handleVideoClick}
+              className={cn(
+                'p-2 rounded-lg transition-all duration-200',
+                'bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground',
+                'flex items-center justify-center'
+              )}
+              title="Watch demonstration"
+            >
+              <Play className="w-4 h-4" />
+            </button>
+          )}
+
+          {hasTimed && !isCompleted && (
+            <button
+              onClick={handleTimerClick}
+              className={cn(
+                'p-2 rounded-lg transition-all duration-200',
+                'bg-primary/10 text-primary hover:bg-primary/20',
+                'flex items-center justify-center'
+              )}
+              title="Start timer"
+            >
+              <Timer className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {showTimer && timerDuration && (
@@ -135,6 +160,15 @@ export const ExerciseItem = ({ exercise, isCompleted, onToggle }: ExerciseItemPr
           exerciseName={exercise.name}
           onClose={handleTimerClose}
           onComplete={handleTimerComplete}
+        />
+      )}
+
+      {showVideo && videoId && (
+        <ExerciseVideoModal
+          isOpen={showVideo}
+          onClose={() => setShowVideo(false)}
+          exerciseName={exercise.name}
+          videoId={videoId}
         />
       )}
     </>
