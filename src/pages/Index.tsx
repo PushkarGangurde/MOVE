@@ -13,6 +13,7 @@ import { ReminderSettings } from '@/components/ReminderSettings';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { PlanSelector } from '@/components/PlanSelector';
+import { InstallPrompt } from '@/components/InstallPrompt';
 import { planInfo } from '@/data/workoutPlans';
 
 const getTodayDayId = (): string => {
@@ -117,6 +118,9 @@ const Index = () => {
 
       {/* Offline Indicator */}
       <OfflineIndicator />
+
+      {/* Install Prompt */}
+      <InstallPrompt />
 
       {/* Header */}
       <motion.header 
