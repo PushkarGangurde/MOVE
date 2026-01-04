@@ -1,10 +1,13 @@
-import { useState } from 'react';
-import { ChevronDown, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ChevronDown, CheckCircle2, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DayWorkout, Exercise } from '@/types/workout';
 import { ExerciseItem } from './ExerciseItem';
 import { ProgressRing } from './ProgressRing';
+import { GuidedWorkout } from './GuidedWorkout';
 import { getSectionLabel } from '@/data/workoutPlan';
+import { useCelebration } from '@/hooks/useCelebration';
+import { Button } from '@/components/ui/button';
 import {
   Collapsible,
   CollapsibleContent,
@@ -18,6 +21,7 @@ interface DayCardProps {
   isExerciseCompleted: (id: string) => boolean;
   onToggleExercise: (id: string) => void;
   isToday?: boolean;
+  onDayComplete?: () => void;
 }
 
 export const DayCard = ({
@@ -27,8 +31,21 @@ export const DayCard = ({
   isExerciseCompleted,
   onToggleExercise,
   isToday = false,
+  onDayComplete,
 }: DayCardProps) => {
   const [isOpen, setIsOpen] = useState(isToday);
+  const [showGuidedWorkout, setShowGuidedWorkout] = useState(false);
+  const wasCompleted = useRef(isCompleted);
+  const { celebrateDay } = useCelebration();
+
+  // Celebrate when day is completed
+  useEffect(() => {
+    if (isCompleted && !wasCompleted.current) {
+      celebrateDay();
+      onDayComplete?.();
+    }
+    wasCompleted.current = isCompleted;
+  }, [isCompleted, celebrateDay, onDayComplete]);
 
   // Group exercises by section
   const sections = day.exercises.reduce((acc, exercise) => {
@@ -99,6 +116,18 @@ export const DayCard = ({
 
         <CollapsibleContent>
           <div className="px-4 pb-4 space-y-4">
+            {/* Start Workout Button */}
+            {!isCompleted && (
+              <Button
+                onClick={() => setShowGuidedWorkout(true)}
+                className="w-full gap-2"
+                size="lg"
+              >
+                <Play className="w-4 h-4" />
+                Start Guided Workout
+              </Button>
+            )}
+
             {/* Progress bar */}
             <div className="h-1.5 bg-muted rounded-full overflow-hidden">
               <div
@@ -109,10 +138,10 @@ export const DayCard = ({
 
             {/* All done message */}
             {isCompleted && (
-              <div className="flex items-center justify-center gap-2 py-3 bg-success-light rounded-lg">
+              <div className="flex items-center justify-center gap-2 py-3 bg-success-light rounded-lg animate-fade-in">
                 <CheckCircle2 className="w-5 h-5 text-success" />
                 <span className="text-sm font-medium text-accent-foreground">
-                  All done for today!
+                  All done for today! 🎉
                 </span>
               </div>
             )}
@@ -143,6 +172,17 @@ export const DayCard = ({
           </div>
         </CollapsibleContent>
       </div>
+
+      {/* Guided Workout Modal */}
+      {showGuidedWorkout && (
+        <GuidedWorkout
+          day={day}
+          isExerciseCompleted={isExerciseCompleted}
+          onToggleExercise={onToggleExercise}
+          onClose={() => setShowGuidedWorkout(false)}
+          onComplete={() => setShowGuidedWorkout(false)}
+        />
+      )}
     </Collapsible>
   );
 };

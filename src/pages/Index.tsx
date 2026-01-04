@@ -1,6 +1,8 @@
+import { useEffect, useRef } from 'react';
 import { Activity } from 'lucide-react';
 import { workoutPlan } from '@/data/workoutPlan';
 import { useWorkoutProgress } from '@/hooks/useWorkoutProgress';
+import { useCelebration } from '@/hooks/useCelebration';
 import { DayCard } from '@/components/DayCard';
 import { WeeklySummary } from '@/components/WeeklySummary';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -21,8 +23,19 @@ const Index = () => {
     streak,
   } = useWorkoutProgress();
 
-  const todayId = getTodayDayId();
+  const { celebrateWeek } = useCelebration();
   const weekProgress = getWeekProgress();
+  const wasWeekComplete = useRef(weekProgress.percentage === 100);
+
+  const todayId = getTodayDayId();
+
+  // Celebrate when week is completed
+  useEffect(() => {
+    if (weekProgress.percentage === 100 && !wasWeekComplete.current) {
+      celebrateWeek();
+    }
+    wasWeekComplete.current = weekProgress.percentage === 100;
+  }, [weekProgress.percentage, celebrateWeek]);
 
   // Sort days to put today's workout first, then remaining days in order
   const sortedDays = [...workoutPlan].sort((a, b) => {

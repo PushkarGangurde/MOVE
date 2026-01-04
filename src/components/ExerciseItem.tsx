@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Check, Timer, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Exercise } from '@/types/workout';
 import { ExerciseTimer } from './ExerciseTimer';
 import { ExerciseVideoModal } from './ExerciseVideoModal';
 import { getExerciseVideoId } from '@/data/exerciseVideos';
+import { useCelebration } from '@/hooks/useCelebration';
 
 interface ExerciseItemProps {
   exercise: Exercise;
@@ -49,10 +50,20 @@ export const ExerciseItem = ({ exercise, isCompleted, onToggle }: ExerciseItemPr
   const [isAnimating, setIsAnimating] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
+  const wasCompleted = useRef(isCompleted);
+  const { celebrateExercise } = useCelebration();
   
   const timerDuration = parseTimeToSeconds(exercise.reps);
   const hasTimed = timerDuration !== null;
   const videoId = getExerciseVideoId(exercise.name);
+
+  // Play sound when exercise is completed
+  useEffect(() => {
+    if (isCompleted && !wasCompleted.current) {
+      celebrateExercise();
+    }
+    wasCompleted.current = isCompleted;
+  }, [isCompleted, celebrateExercise]);
 
   const handleClick = () => {
     if (!isCompleted) {
