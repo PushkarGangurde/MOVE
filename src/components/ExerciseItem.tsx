@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Timer, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Exercise } from '@/types/workout';
@@ -46,7 +47,6 @@ export const ExerciseItem = ({
   onSwap,
   onResetSwap,
 }: ExerciseItemProps) => {
-  const [isAnimating, setIsAnimating] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
   const wasCompleted = useRef(isCompleted);
@@ -71,10 +71,6 @@ export const ExerciseItem = ({
   }, [isCompleted, celebrateExercise]);
 
   const handleClick = () => {
-    if (!isCompleted) {
-      setIsAnimating(true);
-      setTimeout(() => setIsAnimating(false), 300);
-    }
     onToggle();
   };
 
@@ -99,16 +95,20 @@ export const ExerciseItem = ({
 
   return (
     <>
-      <div
+      <motion.div
+        layout
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
         className={cn(
-          'w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200',
-          'hover:bg-secondary/50 active:scale-[0.99]',
+          'w-full flex items-center gap-3 p-3 rounded-lg transition-colors duration-200',
+          'hover:bg-secondary/50',
           'group',
           'focus-within:ring-2 focus-within:ring-primary/50'
         )}
       >
-        <button
+        <motion.button
           onClick={handleClick}
+          whileTap={{ scale: 0.9 }}
           className={cn(
             'w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 shrink-0',
             'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
@@ -118,25 +118,38 @@ export const ExerciseItem = ({
           )}
           aria-label={isCompleted ? `Mark ${displayName} as incomplete` : `Mark ${displayName} as complete`}
         >
-          {isCompleted && (
-            <Check className="w-4 h-4 text-primary-foreground" strokeWidth={3} />
-          )}
-        </button>
+          <AnimatePresence mode="wait">
+            {isCompleted && (
+              <motion.div
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                exit={{ scale: 0, rotate: 180 }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              >
+                <Check className="w-4 h-4 text-primary-foreground" strokeWidth={3} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.button>
         
         <button 
           onClick={handleClick}
           className={cn('flex-1 min-w-0 text-left focus:outline-none', isCompleted && 'exercise-checked')}
         >
-          <p className={cn(
-            'text-sm font-medium text-foreground transition-all duration-200',
-            isCompleted && 'text-muted-foreground',
-            currentSwap && 'text-primary'
-          )}>
+          <motion.p 
+            className={cn(
+              'text-sm font-medium transition-colors duration-200',
+              isCompleted ? 'text-muted-foreground' : 'text-foreground',
+              currentSwap && 'text-primary'
+            )}
+            animate={isCompleted ? { x: [0, 2, 0] } : {}}
+            transition={{ duration: 0.2 }}
+          >
             {displayName}
             {currentSwap && (
               <span className="text-xs text-muted-foreground ml-1">(swapped)</span>
             )}
-          </p>
+          </motion.p>
           <p className={cn(
             'text-xs text-muted-foreground transition-all duration-200',
             isCompleted && 'text-muted-foreground/60'
@@ -145,7 +158,12 @@ export const ExerciseItem = ({
           </p>
         </button>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <motion.div 
+          className="flex items-center gap-1 shrink-0"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+        >
           {/* Exercise swap button */}
           {alternatives.length > 0 && onSwap && onResetSwap && (
             <ExerciseSwapDialog
@@ -158,10 +176,12 @@ export const ExerciseItem = ({
           )}
 
           {videoId && (
-            <button
+            <motion.button
               onClick={handleVideoClick}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
               className={cn(
-                'p-2 rounded-lg transition-all duration-200',
+                'p-2 rounded-lg transition-colors duration-200',
                 'bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground',
                 'flex items-center justify-center',
                 'focus:outline-none focus:ring-2 focus:ring-primary'
@@ -170,14 +190,16 @@ export const ExerciseItem = ({
               aria-label={`Watch ${displayName} demonstration video`}
             >
               <Play className="w-4 h-4" />
-            </button>
+            </motion.button>
           )}
 
           {hasTimed && !isCompleted && (
-            <button
+            <motion.button
               onClick={handleTimerClick}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
               className={cn(
-                'p-2 rounded-lg transition-all duration-200',
+                'p-2 rounded-lg transition-colors duration-200',
                 'bg-primary/10 text-primary hover:bg-primary/20',
                 'flex items-center justify-center',
                 'focus:outline-none focus:ring-2 focus:ring-primary'
@@ -186,20 +208,22 @@ export const ExerciseItem = ({
               aria-label={`Start ${timerDuration} second timer for ${displayName}`}
             >
               <Timer className="w-4 h-4" />
-            </button>
+            </motion.button>
           )}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
-      {showTimer && timerDuration && (
-        <ExerciseTimer
-          key={exercise.id}
-          duration={timerDuration}
-          exerciseName={displayName}
-          onClose={handleTimerClose}
-          onComplete={handleTimerComplete}
-        />
-      )}
+      <AnimatePresence>
+        {showTimer && timerDuration && (
+          <ExerciseTimer
+            key={exercise.id}
+            duration={timerDuration}
+            exerciseName={displayName}
+            onClose={handleTimerClose}
+            onComplete={handleTimerComplete}
+          />
+        )}
+      </AnimatePresence>
 
       {showVideo && videoId && (
         <ExerciseVideoModal

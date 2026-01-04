@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 interface ProgressRingProps {
@@ -32,17 +33,18 @@ export const ProgressRing = ({
         strokeWidth={strokeWidth}
         className="text-muted"
       />
-      <circle
+      <motion.circle
         cx={size / 2}
         cy={size / 2}
         r={radius}
         fill="none"
         stroke="currentColor"
         strokeWidth={strokeWidth}
-        strokeDasharray={circumference}
-        strokeDashoffset={offset}
         strokeLinecap="round"
-        className="text-primary transition-all duration-500 ease-out progress-ring"
+        className="text-primary"
+        initial={{ strokeDasharray: circumference, strokeDashoffset: circumference }}
+        animate={{ strokeDashoffset: offset }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
       />
     </svg>
   );

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Activity } from 'lucide-react';
 import { workoutPlan } from '@/data/workoutPlan';
 import { useWorkoutProgress } from '@/hooks/useWorkoutProgress';
@@ -12,7 +13,6 @@ import { ShareProgress } from '@/components/ShareProgress';
 import { ReminderSettings } from '@/components/ReminderSettings';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
-
 const getTodayDayId = (): string => {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   return days[new Date().getDay()];
@@ -103,27 +103,47 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Onboarding Modal */}
-      {!hasSeenOnboarding && (
-        <OnboardingModal onComplete={markOnboardingComplete} />
-      )}
+      <AnimatePresence>
+        {!hasSeenOnboarding && (
+          <OnboardingModal onComplete={markOnboardingComplete} />
+        )}
+      </AnimatePresence>
 
       {/* Offline Indicator */}
       <OfflineIndicator />
 
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border/50">
+      <motion.header 
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border/50"
+      >
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+            <motion.div 
+              className="flex items-center gap-3"
+              whileHover={{ scale: 1.02 }}
+              transition={{ type: "spring", stiffness: 400 }}
+            >
+              <motion.div 
+                className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center"
+                whileHover={{ rotate: [0, -10, 10, 0] }}
+                transition={{ duration: 0.5 }}
+              >
                 <Activity className="w-5 h-5 text-primary-foreground" strokeWidth={2.5} />
-              </div>
+              </motion.div>
               <div>
                 <h1 className="text-xl font-bold tracking-tight text-foreground">MOVE</h1>
                 <p className="text-xs text-muted-foreground">7-Day Workout Plan</p>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
+            </motion.div>
+            <motion.div 
+              className="flex items-center gap-2"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2, duration: 0.4 }}
+            >
               <ShareProgress
                 completedDays={weekProgress.completedDays}
                 totalDays={weekProgress.totalDays}
@@ -139,17 +159,22 @@ const Index = () => {
                 onColorChange={setAccentColor}
               />
               <ThemeToggle />
-            </div>
+            </motion.div>
           </div>
         </div>
-      </header>
+      </motion.header>
 
       {/* Main Content */}
       <main className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Desktop: Side-by-side layout, Mobile: Stacked */}
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Weekly Summary - Sidebar on desktop */}
-          <div className="w-full lg:w-80 lg:shrink-0">
+          <motion.div 
+            className="w-full lg:w-80 lg:shrink-0"
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
             <div className="lg:sticky lg:top-24">
               <WeeklySummary
                 completedDays={weekProgress.completedDays}
@@ -158,17 +183,43 @@ const Index = () => {
                 streak={streak}
               />
             </div>
-          </div>
+          </motion.div>
 
           {/* Day Cards - Main content area */}
           <div className="flex-1 min-w-0">
             {/* Grid for larger screens */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              {sortedDays.map((day, index) => (
-                <div
+            <motion.div 
+              className="grid grid-cols-1 xl:grid-cols-2 gap-4"
+              initial="hidden"
+              animate="visible"
+              variants={{
+                hidden: { opacity: 0 },
+                visible: {
+                  opacity: 1,
+                  transition: {
+                    staggerChildren: 0.08,
+                  },
+                },
+              }}
+            >
+              {sortedDays.map((day) => (
+                <motion.div
                   key={day.id}
-                  className="animate-fade-in"
-                  style={{ animationDelay: `${index * 50}ms` }}
+                  variants={{
+                    hidden: { opacity: 0, y: 20, scale: 0.95 },
+                    visible: { 
+                      opacity: 1, 
+                      y: 0, 
+                      scale: 1,
+                      transition: {
+                        type: "spring",
+                        stiffness: 100,
+                        damping: 15,
+                      }
+                    },
+                  }}
+                  whileHover={{ y: -2 }}
+                  transition={{ type: "spring", stiffness: 300 }}
                 >
                   <DayCard
                     day={day}
@@ -184,18 +235,23 @@ const Index = () => {
                     getExerciseSwap={getExerciseSwap}
                     onSwapExercise={swapExercise}
                   />
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </div>
         </div>
 
         {/* Footer */}
-        <footer className="pt-8 pb-4 text-center">
+        <motion.footer 
+          className="pt-8 pb-4 text-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+        >
           <p className="text-xs text-muted-foreground">
             Progress resets every Monday • Stay consistent 💪
           </p>
-        </footer>
+        </motion.footer>
       </main>
     </div>
   );
