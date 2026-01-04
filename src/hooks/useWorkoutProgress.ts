@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { WorkoutProgress } from '@/types/workout';
+import { WorkoutProgress, WorkoutHistoryEntry, DayStatus } from '@/types/workout';
 import { workoutPlan } from '@/data/workoutPlan';
 
 const STORAGE_KEY = 'workout-tracker-progress';
@@ -22,6 +22,14 @@ const getDefaultProgress = (): WorkoutProgress => ({
   weekStartDate: formatDate(getMonday(new Date())),
   streak: 0,
   lastCompletedWeek: null,
+  notes: {},
+  dayStatuses: {},
+  exerciseSwaps: {},
+  totalWorkoutsCompleted: 0,
+  longestStreak: 0,
+  workoutHistory: [],
+  achievements: [],
+  hasSeenOnboarding: true, // Default to true so app loads immediately
 });
 
 export const useWorkoutProgress = () => {
@@ -36,21 +44,51 @@ export const useWorkoutProgress = () => {
         const parsed: WorkoutProgress = JSON.parse(stored);
         const currentWeekStart = formatDate(getMonday(new Date()));
         
+        // Ensure all new fields exist
+        const mergedProgress: WorkoutProgress = {
+          ...getDefaultProgress(),
+          ...parsed,
+          notes: parsed.notes || {},
+          dayStatuses: parsed.dayStatuses || {},
+          exerciseSwaps: parsed.exerciseSwaps || {},
+          totalWorkoutsCompleted: parsed.totalWorkoutsCompleted || 0,
+          longestStreak: parsed.longestStreak || 0,
+          workoutHistory: parsed.workoutHistory || [],
+          achievements: parsed.achievements || [],
+        };
+        
         // Check if we need to reset for a new week
-        if (parsed.weekStartDate !== currentWeekStart) {
-          // Check if last week was completed
-          const wasLastWeekComplete = checkWeekComplete(parsed.completedExercises);
+        if (mergedProgress.weekStartDate !== currentWeekStart) {
+          // Save history entry for the completed week
+          const wasLastWeekComplete = checkWeekComplete(mergedProgress.completedExercises);
+          const allExerciseIds = workoutPlan.flatMap(day => day.exercises.map(e => e.id));
+          const completedCount = allExerciseIds.filter(id => mergedProgress.completedExercises[id]).length;
+          
+          const historyEntry: WorkoutHistoryEntry = {
+            weekStartDate: mergedProgress.weekStartDate,
+            completedDays: workoutPlan.filter(day => {
+              const dayExercises = day.exercises;
+              return dayExercises.every(e => mergedProgress.completedExercises[e.id]);
+            }).length,
+            completedExercises: completedCount,
+            totalExercises: allExerciseIds.length,
+          };
           
           const newProgress: WorkoutProgress = {
+            ...mergedProgress,
             completedExercises: {},
             weekStartDate: currentWeekStart,
-            streak: wasLastWeekComplete ? parsed.streak + 1 : 0,
-            lastCompletedWeek: wasLastWeekComplete ? parsed.weekStartDate : parsed.lastCompletedWeek,
+            streak: wasLastWeekComplete ? mergedProgress.streak + 1 : 0,
+            lastCompletedWeek: wasLastWeekComplete ? mergedProgress.weekStartDate : mergedProgress.lastCompletedWeek,
+            notes: {},
+            dayStatuses: {},
+            longestStreak: Math.max(mergedProgress.longestStreak, wasLastWeekComplete ? mergedProgress.streak + 1 : mergedProgress.streak),
+            workoutHistory: [...mergedProgress.workoutHistory, historyEntry].slice(-12), // Keep last 12 weeks
           };
           setProgress(newProgress);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(newProgress));
         } else {
-          setProgress(parsed);
+          setProgress(mergedProgress);
         }
       } catch (e) {
         console.error('Failed to parse workout progress', e);
@@ -73,13 +111,41 @@ export const useWorkoutProgress = () => {
   };
 
   const toggleExercise = useCallback((exerciseId: string) => {
-    setProgress(prev => ({
-      ...prev,
-      completedExercises: {
+    setProgress(prev => {
+      const wasCompleted = prev.completedExercises[exerciseId];
+      const newCompleted = {
         ...prev.completedExercises,
-        [exerciseId]: !prev.completedExercises[exerciseId],
-      },
-    }));
+        [exerciseId]: !wasCompleted,
+      };
+      
+      // Count total completed workouts
+      const completedCount = Object.values(newCompleted).filter(Boolean).length;
+      const prevCompletedCount = Object.values(prev.completedExercises).filter(Boolean).length;
+      
+      // Check for new achievements
+      const newAchievements = [...prev.achievements];
+      
+      // First workout achievement
+      if (!wasCompleted && !prev.achievements.includes('first_workout')) {
+        newAchievements.push('first_workout');
+      }
+      
+      // Early bird / Night owl
+      const hour = new Date().getHours();
+      if (!wasCompleted && hour < 8 && !prev.achievements.includes('early_bird')) {
+        newAchievements.push('early_bird');
+      }
+      if (!wasCompleted && hour >= 21 && !prev.achievements.includes('night_owl')) {
+        newAchievements.push('night_owl');
+      }
+      
+      return {
+        ...prev,
+        completedExercises: newCompleted,
+        totalWorkoutsCompleted: prev.totalWorkoutsCompleted + (!wasCompleted ? 1 : -1),
+        achievements: newAchievements,
+      };
+    });
   }, []);
 
   const getDayProgress = useCallback((dayId: string): { completed: number; total: number; percentage: number } => {
@@ -118,6 +184,71 @@ export const useWorkoutProgress = () => {
     return getDayProgress(dayId).percentage === 100;
   }, [getDayProgress]);
 
+  const setDayNote = useCallback((dayId: string, note: string) => {
+    setProgress(prev => {
+      const newAchievements = [...prev.achievements];
+      if (note && !prev.achievements.includes('note_taker')) {
+        newAchievements.push('note_taker');
+      }
+      return {
+        ...prev,
+        notes: { ...prev.notes, [dayId]: note },
+        achievements: newAchievements,
+      };
+    });
+  }, []);
+
+  const getDayNote = useCallback((dayId: string): string => {
+    return progress.notes[dayId] || '';
+  }, [progress.notes]);
+
+  const skipDay = useCallback((dayId: string, reason: 'rest' | 'missed') => {
+    setProgress(prev => ({
+      ...prev,
+      dayStatuses: {
+        ...prev.dayStatuses,
+        [dayId]: { completed: false, skipped: true, skippedReason: reason },
+      },
+    }));
+  }, []);
+
+  const isDaySkipped = useCallback((dayId: string): DayStatus | null => {
+    return progress.dayStatuses[dayId] || null;
+  }, [progress.dayStatuses]);
+
+  const swapExercise = useCallback((exerciseId: string, alternativeName: string) => {
+    setProgress(prev => ({
+      ...prev,
+      exerciseSwaps: { ...prev.exerciseSwaps, [exerciseId]: alternativeName },
+    }));
+  }, []);
+
+  const getExerciseSwap = useCallback((exerciseId: string): string | null => {
+    return progress.exerciseSwaps[exerciseId] || null;
+  }, [progress.exerciseSwaps]);
+
+  const unlockAchievement = useCallback((achievementId: string) => {
+    setProgress(prev => {
+      if (prev.achievements.includes(achievementId)) return prev;
+      return {
+        ...prev,
+        achievements: [...prev.achievements, achievementId],
+      };
+    });
+  }, []);
+
+  const setReminderTime = useCallback((time: string | undefined) => {
+    setProgress(prev => ({ ...prev, reminderTime: time }));
+  }, []);
+
+  const setAccentColor = useCallback((color: string) => {
+    setProgress(prev => ({ ...prev, accentColor: color }));
+  }, []);
+
+  const markOnboardingComplete = useCallback(() => {
+    setProgress(prev => ({ ...prev, hasSeenOnboarding: true }));
+  }, []);
+
   return {
     progress,
     isLoaded,
@@ -127,5 +258,22 @@ export const useWorkoutProgress = () => {
     isExerciseCompleted,
     isDayCompleted,
     streak: progress.streak,
+    setDayNote,
+    getDayNote,
+    skipDay,
+    isDaySkipped,
+    swapExercise,
+    getExerciseSwap,
+    unlockAchievement,
+    achievements: progress.achievements,
+    totalWorkoutsCompleted: progress.totalWorkoutsCompleted,
+    longestStreak: progress.longestStreak,
+    workoutHistory: progress.workoutHistory,
+    setReminderTime,
+    reminderTime: progress.reminderTime,
+    setAccentColor,
+    accentColor: progress.accentColor,
+    hasSeenOnboarding: progress.hasSeenOnboarding,
+    markOnboardingComplete,
   };
 };
