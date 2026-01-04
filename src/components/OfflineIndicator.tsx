@@ -1,4 +1,5 @@
-import { WifiOff } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { WifiOff, Wifi } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -28,22 +29,32 @@ export const OfflineIndicator = () => {
     };
   }, []);
 
-  if (!showBanner && isOnline) return null;
-
   return (
-    <div
-      className={cn(
-        'fixed bottom-4 left-1/2 -translate-x-1/2 z-50',
-        'px-4 py-2 rounded-full shadow-lg',
-        'flex items-center gap-2 text-sm font-medium',
-        'animate-fade-in transition-all',
-        isOnline
-          ? 'bg-success text-success-foreground'
-          : 'bg-destructive text-destructive-foreground'
+    <AnimatePresence>
+      {(showBanner || !isOnline) && (
+        <motion.div
+          initial={{ y: 100, opacity: 0, scale: 0.8 }}
+          animate={{ y: 0, opacity: 1, scale: 1 }}
+          exit={{ y: 100, opacity: 0, scale: 0.8 }}
+          transition={{ type: "spring", stiffness: 200, damping: 20 }}
+          className={cn(
+            'fixed bottom-4 left-1/2 -translate-x-1/2 z-50',
+            'px-4 py-2 rounded-full shadow-lg',
+            'flex items-center gap-2 text-sm font-medium',
+            isOnline
+              ? 'bg-success text-success-foreground'
+              : 'bg-destructive text-destructive-foreground'
+          )}
+        >
+          <motion.div
+            animate={!isOnline ? { rotate: [0, -10, 10, 0] } : {}}
+            transition={{ repeat: Infinity, duration: 2 }}
+          >
+            {isOnline ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
+          </motion.div>
+          {isOnline ? 'Back online' : 'You\'re offline'}
+        </motion.div>
       )}
-    >
-      {!isOnline && <WifiOff className="w-4 h-4" />}
-      {isOnline ? 'Back online' : 'You\'re offline'}
-    </div>
+    </AnimatePresence>
   );
 };

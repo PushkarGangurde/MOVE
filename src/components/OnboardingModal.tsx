@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, ChevronRight, CheckCircle2, Timer, Trophy, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -37,9 +38,11 @@ const steps = [
 
 export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
   const [currentStep, setCurrentStep] = useState(0);
+  const [direction, setDirection] = useState(1);
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
+      setDirection(1);
       setCurrentStep(currentStep + 1);
     } else {
       onComplete();
@@ -53,66 +56,146 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
   const step = steps[currentStep];
   const Icon = step.icon;
 
+  const slideVariants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? 100 : -100,
+      opacity: 0,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+    },
+    exit: (direction: number) => ({
+      x: direction > 0 ? -100 : 100,
+      opacity: 0,
+    }),
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <motion.div 
+      className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div 
+        className="w-full max-w-md"
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 200, damping: 20 }}
+      >
         {/* Progress dots */}
         <div className="flex justify-center gap-2 mb-8">
           {steps.map((_, index) => (
-            <div
+            <motion.div
               key={index}
               className={cn(
-                'w-2 h-2 rounded-full transition-all duration-300',
+                'h-2 rounded-full transition-colors duration-300',
                 index === currentStep
-                  ? 'w-6 bg-primary'
+                  ? 'bg-primary'
                   : index < currentStep
                   ? 'bg-primary/50'
                   : 'bg-muted'
               )}
+              initial={false}
+              animate={{ 
+                width: index === currentStep ? 24 : 8,
+              }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
             />
           ))}
         </div>
 
         {/* Content */}
-        <div className="text-center space-y-6">
-          <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-            <Icon className="w-10 h-10 text-primary" />
-          </div>
-          
-          <div className="space-y-3">
-            <h2 className="text-2xl font-bold text-foreground">{step.title}</h2>
-            <p className="text-muted-foreground leading-relaxed">{step.description}</p>
-          </div>
-        </div>
+        <AnimatePresence mode="wait" custom={direction}>
+          <motion.div 
+            key={currentStep}
+            custom={direction}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="text-center space-y-6"
+          >
+            <motion.div 
+              className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto"
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
+            >
+              <Icon className="w-10 h-10 text-primary" />
+            </motion.div>
+            
+            <div className="space-y-3">
+              <motion.h2 
+                className="text-2xl font-bold text-foreground"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+              >
+                {step.title}
+              </motion.h2>
+              <motion.p 
+                className="text-muted-foreground leading-relaxed"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
+                {step.description}
+              </motion.p>
+            </div>
+          </motion.div>
+        </AnimatePresence>
 
         {/* Actions */}
-        <div className="mt-10 space-y-3">
-          <Button
-            onClick={handleNext}
-            className="w-full gap-2"
-            size="lg"
-          >
-            {currentStep < steps.length - 1 ? (
-              <>
-                Next
-                <ChevronRight className="w-4 h-4" />
-              </>
-            ) : (
-              'Get Started'
-            )}
-          </Button>
-          
-          {currentStep < steps.length - 1 && (
+        <motion.div 
+          className="mt-10 space-y-3"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Button
-              variant="ghost"
-              onClick={handleSkip}
-              className="w-full text-muted-foreground"
+              onClick={handleNext}
+              className="w-full gap-2"
+              size="lg"
             >
-              Skip tutorial
+              {currentStep < steps.length - 1 ? (
+                <>
+                  Next
+                  <motion.div
+                    animate={{ x: [0, 4, 0] }}
+                    transition={{ repeat: Infinity, duration: 1.5 }}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </motion.div>
+                </>
+              ) : (
+                'Get Started'
+              )}
             </Button>
-          )}
-        </div>
-      </div>
-    </div>
+          </motion.div>
+          
+          <AnimatePresence>
+            {currentStep < steps.length - 1 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                <Button
+                  variant="ghost"
+                  onClick={handleSkip}
+                  className="w-full text-muted-foreground"
+                >
+                  Skip tutorial
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </motion.div>
+    </motion.div>
   );
 };
