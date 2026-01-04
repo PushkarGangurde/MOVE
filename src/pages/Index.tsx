@@ -20,6 +20,7 @@ import { OnboardingModal } from '@/components/OnboardingModal';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { PlanSelector } from '@/components/PlanSelector';
 import { InstallPrompt } from '@/components/InstallPrompt';
+import { UserMenu } from '@/components/UserMenu';
 import { planInfo } from '@/data/workoutPlans';
 
 const getTodayDayId = (): string => {
@@ -182,6 +183,7 @@ const Index = () => {
                   onColorChange={setAccentColor}
                 />
                 <ThemeToggle />
+                <UserMenu />
               </div>
 
               {/* Mobile: Dropdown menu */}
@@ -223,6 +225,10 @@ const Index = () => {
                       <div className="flex items-center justify-between px-2 py-1">
                         <span className="text-sm text-muted-foreground">Dark Mode</span>
                         <ThemeToggle />
+                      </div>
+                      <div className="flex items-center justify-between px-2 py-1">
+                        <span className="text-sm text-muted-foreground">Account</span>
+                        <UserMenu />
                       </div>
                     </div>
                   </DropdownMenuContent>
