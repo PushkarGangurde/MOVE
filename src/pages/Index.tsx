@@ -6,6 +6,12 @@ import { useCelebration } from '@/hooks/useCelebration';
 import { DayCard } from '@/components/DayCard';
 import { WeeklySummary } from '@/components/WeeklySummary';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { ThemeCustomizer } from '@/components/ThemeCustomizer';
+import { AchievementsPanel } from '@/components/AchievementsPanel';
+import { ShareProgress } from '@/components/ShareProgress';
+import { ReminderSettings } from '@/components/ReminderSettings';
+import { OnboardingModal } from '@/components/OnboardingModal';
+import { OfflineIndicator } from '@/components/OfflineIndicator';
 
 const getTodayDayId = (): string => {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -21,6 +27,20 @@ const Index = () => {
     isExerciseCompleted,
     isDayCompleted,
     streak,
+    setDayNote,
+    getDayNote,
+    skipDay,
+    isDaySkipped,
+    swapExercise,
+    getExerciseSwap,
+    achievements,
+    setReminderTime,
+    reminderTime,
+    setAccentColor,
+    accentColor,
+    hasSeenOnboarding,
+    markOnboardingComplete,
+    unlockAchievement,
   } = useWorkoutProgress();
 
   const { celebrateWeek } = useCelebration();
@@ -29,13 +49,40 @@ const Index = () => {
 
   const todayId = getTodayDayId();
 
+  // Apply saved accent color on load
+  useEffect(() => {
+    if (accentColor) {
+      document.documentElement.style.setProperty('--primary', accentColor);
+      document.documentElement.style.setProperty('--ring', accentColor);
+    }
+  }, [accentColor]);
+
   // Celebrate when week is completed
   useEffect(() => {
     if (weekProgress.percentage === 100 && !wasWeekComplete.current) {
       celebrateWeek();
+      unlockAchievement('first_week');
+      unlockAchievement('perfect_week');
     }
     wasWeekComplete.current = weekProgress.percentage === 100;
-  }, [weekProgress.percentage, celebrateWeek]);
+  }, [weekProgress.percentage, celebrateWeek, unlockAchievement]);
+
+  // Check for day completion achievements
+  useEffect(() => {
+    const completedDaysCount = workoutPlan.filter(day => isDayCompleted(day.id)).length;
+    if (completedDaysCount >= 1) {
+      unlockAchievement('first_day');
+    }
+    if (completedDaysCount >= 3) {
+      unlockAchievement('three_day_streak');
+    }
+    if (completedDaysCount >= 4) {
+      unlockAchievement('halfway_hero');
+    }
+    if (completedDaysCount >= 7) {
+      unlockAchievement('seven_day_streak');
+    }
+  }, [isDayCompleted, unlockAchievement]);
 
   // Sort days to put today's workout first, then remaining days in order
   const sortedDays = [...workoutPlan].sort((a, b) => {
@@ -55,6 +102,14 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Onboarding Modal */}
+      {!hasSeenOnboarding && (
+        <OnboardingModal onComplete={markOnboardingComplete} />
+      )}
+
+      {/* Offline Indicator */}
+      <OfflineIndicator />
+
       {/* Header */}
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-lg border-b border-border/50">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -69,14 +124,20 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <a
-                href="https://7to14.vercel.app"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-3 py-1.5 text-sm font-medium rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
-              >
-                7to14
-              </a>
+              <ShareProgress
+                completedDays={weekProgress.completedDays}
+                totalDays={weekProgress.totalDays}
+                streak={streak}
+              />
+              <AchievementsPanel unlockedAchievements={achievements} />
+              <ReminderSettings
+                reminderTime={reminderTime}
+                onSetReminder={setReminderTime}
+              />
+              <ThemeCustomizer
+                currentColor={accentColor}
+                onColorChange={setAccentColor}
+              />
               <ThemeToggle />
             </div>
           </div>
@@ -116,6 +177,12 @@ const Index = () => {
                     isExerciseCompleted={isExerciseCompleted}
                     onToggleExercise={toggleExercise}
                     isToday={day.id === todayId}
+                    note={getDayNote(day.id)}
+                    onSaveNote={(note) => setDayNote(day.id, note)}
+                    dayStatus={isDaySkipped(day.id)}
+                    onSkipDay={(reason) => skipDay(day.id, reason)}
+                    getExerciseSwap={getExerciseSwap}
+                    onSwapExercise={swapExercise}
                   />
                 </div>
               ))}

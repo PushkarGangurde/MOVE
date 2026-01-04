@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, CheckCircle2, Play } from 'lucide-react';
+import { ChevronDown, CheckCircle2, Play, Coffee } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DayWorkout, Exercise } from '@/types/workout';
+import { DayWorkout, Exercise, DayStatus } from '@/types/workout';
 import { ExerciseItem } from './ExerciseItem';
 import { ProgressRing } from './ProgressRing';
 import { GuidedWorkout } from './GuidedWorkout';
+import { DayNotes } from './DayNotes';
+import { SkipDayDialog } from './SkipDayDialog';
+import { CalendarExport } from './CalendarExport';
 import { getSectionLabel } from '@/data/workoutPlan';
 import { useCelebration } from '@/hooks/useCelebration';
 import { Button } from '@/components/ui/button';
@@ -22,6 +25,12 @@ interface DayCardProps {
   onToggleExercise: (id: string) => void;
   isToday?: boolean;
   onDayComplete?: () => void;
+  note?: string;
+  onSaveNote?: (note: string) => void;
+  dayStatus?: DayStatus | null;
+  onSkipDay?: (reason: 'rest' | 'missed') => void;
+  getExerciseSwap?: (exerciseId: string) => string | null;
+  onSwapExercise?: (exerciseId: string, alternativeName: string) => void;
 }
 
 export const DayCard = ({
@@ -32,6 +41,12 @@ export const DayCard = ({
   onToggleExercise,
   isToday = false,
   onDayComplete,
+  note = '',
+  onSaveNote,
+  dayStatus,
+  onSkipDay,
+  getExerciseSwap,
+  onSwapExercise,
 }: DayCardProps) => {
   const [isOpen, setIsOpen] = useState(isToday);
   const [showGuidedWorkout, setShowGuidedWorkout] = useState(false);
@@ -57,6 +72,7 @@ export const DayCard = ({
   }, {} as Record<string, Exercise[]>);
 
   const sectionOrder = ['warmup', 'main', 'core', 'cooldown'];
+  const isSkipped = dayStatus?.skipped;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -65,7 +81,8 @@ export const DayCard = ({
           'bg-card rounded-xl shadow-card transition-all duration-300',
           'border border-border/50',
           isOpen && 'shadow-hover',
-          isToday && 'ring-2 ring-primary/20'
+          isToday && 'ring-2 ring-primary/20',
+          isSkipped && 'opacity-60'
         )}
       >
         <CollapsibleTrigger className="w-full">
@@ -78,7 +95,12 @@ export const DayCard = ({
                     <CheckCircle2 className="w-5 h-5 text-primary" />
                   </div>
                 )}
-                {!isCompleted && (
+                {isSkipped && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Coffee className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                )}
+                {!isCompleted && !isSkipped && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <span className="text-xs font-semibold text-foreground">
                       {progress.percentage}%
@@ -93,6 +115,11 @@ export const DayCard = ({
                   {isToday && (
                     <span className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide bg-primary/10 text-primary rounded-full">
                       Today
+                    </span>
+                  )}
+                  {isSkipped && (
+                    <span className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide bg-muted text-muted-foreground rounded-full">
+                      {dayStatus?.skippedReason === 'rest' ? 'Rest Day' : 'Skipped'}
                     </span>
                   )}
                 </div>
@@ -116,17 +143,27 @@ export const DayCard = ({
 
         <CollapsibleContent>
           <div className="px-4 pb-4 space-y-4">
-            {/* Start Workout Button */}
-            {!isCompleted && (
-              <Button
-                onClick={() => setShowGuidedWorkout(true)}
-                className="w-full gap-2"
-                size="lg"
-              >
-                <Play className="w-4 h-4" />
-                Start Guided Workout
-              </Button>
+            {/* Action buttons */}
+            {!isCompleted && !isSkipped && (
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={() => setShowGuidedWorkout(true)}
+                  className="flex-1 gap-2"
+                  size="lg"
+                >
+                  <Play className="w-4 h-4" />
+                  Start Guided Workout
+                </Button>
+                {onSkipDay && (
+                  <SkipDayDialog dayName={day.dayName} onSkip={onSkipDay} />
+                )}
+              </div>
             )}
+
+            {/* Calendar export */}
+            <div className="flex justify-end">
+              <CalendarExport day={day} />
+            </div>
 
             {/* Progress bar */}
             <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -146,8 +183,18 @@ export const DayCard = ({
               </div>
             )}
 
+            {/* Skipped message */}
+            {isSkipped && (
+              <div className="flex items-center justify-center gap-2 py-3 bg-muted rounded-lg">
+                <Coffee className="w-5 h-5 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground">
+                  {dayStatus?.skippedReason === 'rest' ? 'Taking a rest day 😌' : 'Workout skipped'}
+                </span>
+              </div>
+            )}
+
             {/* Exercise sections */}
-            {sectionOrder.map(sectionKey => {
+            {!isSkipped && sectionOrder.map(sectionKey => {
               const exercises = sections[sectionKey];
               if (!exercises || exercises.length === 0) return null;
 
@@ -163,12 +210,22 @@ export const DayCard = ({
                         exercise={exercise}
                         isCompleted={isExerciseCompleted(exercise.id)}
                         onToggle={() => onToggleExercise(exercise.id)}
+                        currentSwap={getExerciseSwap?.(exercise.id)}
+                        onSwap={(alt) => onSwapExercise?.(exercise.id, alt)}
+                        onResetSwap={() => onSwapExercise?.(exercise.id, '')}
                       />
                     ))}
                   </div>
                 </div>
               );
             })}
+
+            {/* Notes section */}
+            {onSaveNote && (
+              <div className="pt-2 border-t border-border/50">
+                <DayNotes dayId={day.id} note={note} onSave={onSaveNote} />
+              </div>
+            )}
           </div>
         </CollapsibleContent>
       </div>
