@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity } from 'lucide-react';
-import { workoutPlan } from '@/data/workoutPlan';
 import { useWorkoutProgress } from '@/hooks/useWorkoutProgress';
 import { useCelebration } from '@/hooks/useCelebration';
 import { DayCard } from '@/components/DayCard';
@@ -13,6 +12,9 @@ import { ShareProgress } from '@/components/ShareProgress';
 import { ReminderSettings } from '@/components/ReminderSettings';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { OfflineIndicator } from '@/components/OfflineIndicator';
+import { PlanSelector } from '@/components/PlanSelector';
+import { planInfo } from '@/data/workoutPlans';
+
 const getTodayDayId = (): string => {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   return days[new Date().getDay()];
@@ -41,6 +43,9 @@ const Index = () => {
     hasSeenOnboarding,
     markOnboardingComplete,
     unlockAchievement,
+    difficulty,
+    setDifficulty,
+    currentPlan,
   } = useWorkoutProgress();
 
   const { celebrateWeek } = useCelebration();
@@ -48,6 +53,7 @@ const Index = () => {
   const wasWeekComplete = useRef(weekProgress.percentage === 100);
 
   const todayId = getTodayDayId();
+  const currentPlanInfo = planInfo[difficulty];
 
   // Apply saved accent color on load
   useEffect(() => {
@@ -69,7 +75,7 @@ const Index = () => {
 
   // Check for day completion achievements
   useEffect(() => {
-    const completedDaysCount = workoutPlan.filter(day => isDayCompleted(day.id)).length;
+    const completedDaysCount = currentPlan.filter(day => isDayCompleted(day.id)).length;
     if (completedDaysCount >= 1) {
       unlockAchievement('first_day');
     }
@@ -82,10 +88,10 @@ const Index = () => {
     if (completedDaysCount >= 7) {
       unlockAchievement('seven_day_streak');
     }
-  }, [isDayCompleted, unlockAchievement]);
+  }, [isDayCompleted, unlockAchievement, currentPlan]);
 
   // Sort days to put today's workout first, then remaining days in order
-  const sortedDays = [...workoutPlan].sort((a, b) => {
+  const sortedDays = [...currentPlan].sort((a, b) => {
     if (a.id === todayId) return -1;
     if (b.id === todayId) return 1;
     const dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
@@ -135,7 +141,9 @@ const Index = () => {
               </motion.div>
               <div>
                 <h1 className="text-xl font-bold tracking-tight text-foreground">MOVE</h1>
-                <p className="text-xs text-muted-foreground">7-Day Workout Plan</p>
+                <p className="text-xs text-muted-foreground">
+                  {currentPlanInfo.icon} {currentPlanInfo.name} • {currentPlanInfo.duration}
+                </p>
               </div>
             </motion.div>
             <motion.div 
@@ -144,6 +152,7 @@ const Index = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2, duration: 0.4 }}
             >
+              <PlanSelector currentPlan={difficulty} onPlanChange={setDifficulty} />
               <ShareProgress
                 completedDays={weekProgress.completedDays}
                 totalDays={weekProgress.totalDays}
@@ -201,6 +210,7 @@ const Index = () => {
                   },
                 },
               }}
+              key={difficulty} // Re-animate when difficulty changes
             >
               {sortedDays.map((day) => (
                 <motion.div

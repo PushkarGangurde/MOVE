@@ -9,7 +9,7 @@ import { GuidedWorkout } from './GuidedWorkout';
 import { DayNotes } from './DayNotes';
 import { SkipDayDialog } from './SkipDayDialog';
 import { CalendarExport } from './CalendarExport';
-import { getSectionLabel } from '@/data/workoutPlan';
+import { getSectionLabel } from '@/data/workoutPlans';
 import { useCelebration } from '@/hooks/useCelebration';
 import { Button } from '@/components/ui/button';
 import {

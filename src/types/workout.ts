@@ -58,3 +58,5 @@ export interface Achievement {
 }
 
 export type DayId = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+
+export type DifficultyLevel = 'beginner' | 'intermediate' | 'hardcore';

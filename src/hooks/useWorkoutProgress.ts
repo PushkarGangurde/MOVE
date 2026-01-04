@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { WorkoutProgress, WorkoutHistoryEntry, DayStatus } from '@/types/workout';
-import { workoutPlan } from '@/data/workoutPlan';
+import { WorkoutProgress, WorkoutHistoryEntry, DayStatus, DifficultyLevel } from '@/types/workout';
+import { getWorkoutPlan } from '@/data/workoutPlans';
 
 const STORAGE_KEY = 'workout-tracker-progress';
 
@@ -17,7 +17,11 @@ const formatDate = (date: Date): string => {
   return date.toISOString().split('T')[0];
 };
 
-const getDefaultProgress = (): WorkoutProgress => ({
+interface ExtendedWorkoutProgress extends WorkoutProgress {
+  difficulty: DifficultyLevel;
+}
+
+const getDefaultProgress = (): ExtendedWorkoutProgress => ({
   completedExercises: {},
   weekStartDate: formatDate(getMonday(new Date())),
   streak: 0,
@@ -29,23 +33,27 @@ const getDefaultProgress = (): WorkoutProgress => ({
   longestStreak: 0,
   workoutHistory: [],
   achievements: [],
-  hasSeenOnboarding: true, // Default to true so app loads immediately
+  hasSeenOnboarding: true,
+  difficulty: 'intermediate',
 });
 
 export const useWorkoutProgress = () => {
-  const [progress, setProgress] = useState<WorkoutProgress>(getDefaultProgress);
+  const [progress, setProgress] = useState<ExtendedWorkoutProgress>(getDefaultProgress);
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // Get current workout plan based on difficulty
+  const currentPlan = getWorkoutPlan(progress.difficulty);
 
   // Load from localStorage
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        const parsed: WorkoutProgress = JSON.parse(stored);
+        const parsed: ExtendedWorkoutProgress = JSON.parse(stored);
         const currentWeekStart = formatDate(getMonday(new Date()));
         
         // Ensure all new fields exist
-        const mergedProgress: WorkoutProgress = {
+        const mergedProgress: ExtendedWorkoutProgress = {
           ...getDefaultProgress(),
           ...parsed,
           notes: parsed.notes || {},
@@ -55,12 +63,15 @@ export const useWorkoutProgress = () => {
           longestStreak: parsed.longestStreak || 0,
           workoutHistory: parsed.workoutHistory || [],
           achievements: parsed.achievements || [],
+          difficulty: parsed.difficulty || 'intermediate',
         };
+        
+        const workoutPlan = getWorkoutPlan(mergedProgress.difficulty);
         
         // Check if we need to reset for a new week
         if (mergedProgress.weekStartDate !== currentWeekStart) {
           // Save history entry for the completed week
-          const wasLastWeekComplete = checkWeekComplete(mergedProgress.completedExercises);
+          const wasLastWeekComplete = checkWeekComplete(mergedProgress.completedExercises, workoutPlan);
           const allExerciseIds = workoutPlan.flatMap(day => day.exercises.map(e => e.id));
           const completedCount = allExerciseIds.filter(id => mergedProgress.completedExercises[id]).length;
           
@@ -74,7 +85,7 @@ export const useWorkoutProgress = () => {
             totalExercises: allExerciseIds.length,
           };
           
-          const newProgress: WorkoutProgress = {
+          const newProgress: ExtendedWorkoutProgress = {
             ...mergedProgress,
             completedExercises: {},
             weekStartDate: currentWeekStart,
@@ -83,7 +94,7 @@ export const useWorkoutProgress = () => {
             notes: {},
             dayStatuses: {},
             longestStreak: Math.max(mergedProgress.longestStreak, wasLastWeekComplete ? mergedProgress.streak + 1 : mergedProgress.streak),
-            workoutHistory: [...mergedProgress.workoutHistory, historyEntry].slice(-12), // Keep last 12 weeks
+            workoutHistory: [...mergedProgress.workoutHistory, historyEntry].slice(-12),
           };
           setProgress(newProgress);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(newProgress));
@@ -105,10 +116,24 @@ export const useWorkoutProgress = () => {
     }
   }, [progress, isLoaded]);
 
-  const checkWeekComplete = (exercises: Record<string, boolean>): boolean => {
-    const allExerciseIds = workoutPlan.flatMap(day => day.exercises.map(e => e.id));
+  const checkWeekComplete = (exercises: Record<string, boolean>, plan = currentPlan): boolean => {
+    const allExerciseIds = plan.flatMap(day => day.exercises.map(e => e.id));
     return allExerciseIds.every(id => exercises[id] === true);
   };
+
+  const setDifficulty = useCallback((difficulty: DifficultyLevel) => {
+    setProgress(prev => {
+      // When changing difficulty, reset exercises but keep other progress
+      return {
+        ...prev,
+        difficulty,
+        completedExercises: {},
+        notes: {},
+        dayStatuses: {},
+        exerciseSwaps: {},
+      };
+    });
+  }, []);
 
   const toggleExercise = useCallback((exerciseId: string) => {
     setProgress(prev => {
@@ -118,19 +143,12 @@ export const useWorkoutProgress = () => {
         [exerciseId]: !wasCompleted,
       };
       
-      // Count total completed workouts
-      const completedCount = Object.values(newCompleted).filter(Boolean).length;
-      const prevCompletedCount = Object.values(prev.completedExercises).filter(Boolean).length;
-      
-      // Check for new achievements
       const newAchievements = [...prev.achievements];
       
-      // First workout achievement
       if (!wasCompleted && !prev.achievements.includes('first_workout')) {
         newAchievements.push('first_workout');
       }
       
-      // Early bird / Night owl
       const hour = new Date().getHours();
       if (!wasCompleted && hour < 8 && !prev.achievements.includes('early_bird')) {
         newAchievements.push('early_bird');
@@ -149,7 +167,7 @@ export const useWorkoutProgress = () => {
   }, []);
 
   const getDayProgress = useCallback((dayId: string): { completed: number; total: number; percentage: number } => {
-    const day = workoutPlan.find(d => d.id === dayId);
+    const day = currentPlan.find(d => d.id === dayId);
     if (!day) return { completed: 0, total: 0, percentage: 0 };
     
     const total = day.exercises.length;
@@ -157,12 +175,12 @@ export const useWorkoutProgress = () => {
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
     
     return { completed, total, percentage };
-  }, [progress.completedExercises]);
+  }, [progress.completedExercises, currentPlan]);
 
   const getWeekProgress = useCallback((): { completedDays: number; totalDays: number; percentage: number } => {
     let completedDays = 0;
     
-    workoutPlan.forEach(day => {
+    currentPlan.forEach(day => {
       const dayProgress = getDayProgress(day.id);
       if (dayProgress.percentage === 100) {
         completedDays++;
@@ -174,7 +192,7 @@ export const useWorkoutProgress = () => {
       totalDays: 7,
       percentage: Math.round((completedDays / 7) * 100),
     };
-  }, [getDayProgress]);
+  }, [getDayProgress, currentPlan]);
 
   const isExerciseCompleted = useCallback((exerciseId: string): boolean => {
     return progress.completedExercises[exerciseId] === true;
@@ -275,5 +293,9 @@ export const useWorkoutProgress = () => {
     accentColor: progress.accentColor,
     hasSeenOnboarding: progress.hasSeenOnboarding,
     markOnboardingComplete,
+    // New difficulty-related
+    difficulty: progress.difficulty,
+    setDifficulty,
+    currentPlan,
   };
 };
