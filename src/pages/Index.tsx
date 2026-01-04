@@ -1,6 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Activity } from 'lucide-react';
+import { Activity, Menu } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 import { useWorkoutProgress } from '@/hooks/useWorkoutProgress';
 import { useCelebration } from '@/hooks/useCelebration';
 import { DayCard } from '@/components/DayCard';
@@ -151,27 +157,77 @@ const Index = () => {
               </div>
             </motion.div>
             <motion.div 
-              className="flex items-center gap-2"
+              className="flex items-center gap-1 sm:gap-2"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2, duration: 0.4 }}
             >
+              {/* Always visible: Plan selector */}
               <PlanSelector currentPlan={difficulty} onPlanChange={setDifficulty} />
-              <ShareProgress
-                completedDays={weekProgress.completedDays}
-                totalDays={weekProgress.totalDays}
-                streak={streak}
-              />
-              <AchievementsPanel unlockedAchievements={achievements} />
-              <ReminderSettings
-                reminderTime={reminderTime}
-                onSetReminder={setReminderTime}
-              />
-              <ThemeCustomizer
-                currentColor={accentColor}
-                onColorChange={setAccentColor}
-              />
-              <ThemeToggle />
+              
+              {/* Desktop: Show all buttons */}
+              <div className="hidden sm:flex items-center gap-2">
+                <ShareProgress
+                  completedDays={weekProgress.completedDays}
+                  totalDays={weekProgress.totalDays}
+                  streak={streak}
+                />
+                <AchievementsPanel unlockedAchievements={achievements} />
+                <ReminderSettings
+                  reminderTime={reminderTime}
+                  onSetReminder={setReminderTime}
+                />
+                <ThemeCustomizer
+                  currentColor={accentColor}
+                  onColorChange={setAccentColor}
+                />
+                <ThemeToggle />
+              </div>
+
+              {/* Mobile: Dropdown menu */}
+              <div className="sm:hidden">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-9 w-9">
+                      <Menu className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="p-2 min-w-[180px]">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between px-2 py-1">
+                        <span className="text-sm text-muted-foreground">Share</span>
+                        <ShareProgress
+                          completedDays={weekProgress.completedDays}
+                          totalDays={weekProgress.totalDays}
+                          streak={streak}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between px-2 py-1">
+                        <span className="text-sm text-muted-foreground">Achievements</span>
+                        <AchievementsPanel unlockedAchievements={achievements} />
+                      </div>
+                      <div className="flex items-center justify-between px-2 py-1">
+                        <span className="text-sm text-muted-foreground">Reminders</span>
+                        <ReminderSettings
+                          reminderTime={reminderTime}
+                          onSetReminder={setReminderTime}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between px-2 py-1">
+                        <span className="text-sm text-muted-foreground">Theme Color</span>
+                        <ThemeCustomizer
+                          currentColor={accentColor}
+                          onColorChange={setAccentColor}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between px-2 py-1">
+                        <span className="text-sm text-muted-foreground">Dark Mode</span>
+                        <ThemeToggle />
+                      </div>
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </motion.div>
           </div>
         </div>
