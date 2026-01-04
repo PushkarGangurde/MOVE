@@ -136,13 +136,13 @@ const Index = () => {
               whileHover={{ scale: 1.02 }}
               transition={{ type: "spring", stiffness: 400 }}
             >
-              <motion.div 
-                className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center"
+              <motion.img 
+                src="/favicon.png"
+                alt="MOVE Logo"
+                className="w-10 h-10 rounded-xl"
                 whileHover={{ rotate: [0, -10, 10, 0] }}
                 transition={{ duration: 0.5 }}
-              >
-                <Activity className="w-5 h-5 text-primary-foreground" strokeWidth={2.5} />
-              </motion.div>
+              />
               <div>
                 <h1 className="text-xl font-bold tracking-tight text-foreground">MOVE</h1>
                 <p className="text-xs text-muted-foreground">
