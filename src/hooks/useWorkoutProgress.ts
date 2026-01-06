@@ -121,6 +121,7 @@ export const useWorkoutProgress = () => {
         }
 
         if (data) {
+          const localFields = getLocalOnlyFields();
           const dbProgress: Partial<ExtendedWorkoutProgress> = {
             completedExercises: (data.completed_exercises as unknown as Record<string, boolean>) || {},
             notes: (data.notes as unknown as Record<string, string>) || {},
@@ -128,8 +129,16 @@ export const useWorkoutProgress = () => {
             exerciseSwaps: (data.exercise_swaps as unknown as Record<string, string>) || {},
             achievements: data.achievements || [],
             difficulty: (data.difficulty as DifficultyLevel) || 'intermediate',
-            // These fields are stored locally only for now
-            ...getLocalOnlyFields(),
+            reminderTime: data.reminder_time || localFields.reminderTime,
+            accentColor: data.accent_color || localFields.accentColor,
+            // These fields are stored locally only
+            weekStartDate: localFields.weekStartDate,
+            streak: localFields.streak,
+            lastCompletedWeek: localFields.lastCompletedWeek,
+            totalWorkoutsCompleted: localFields.totalWorkoutsCompleted,
+            longestStreak: localFields.longestStreak,
+            workoutHistory: localFields.workoutHistory,
+            hasSeenOnboarding: localFields.hasSeenOnboarding,
           };
           
           const processed = processProgress(dbProgress);
