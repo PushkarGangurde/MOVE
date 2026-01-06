@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { WorkoutProgress, WorkoutHistoryEntry, DayStatus, DifficultyLevel } from '@/types/workout';
 import { getWorkoutPlan } from '@/data/workoutPlans';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
 
 const STORAGE_KEY = 'workout-tracker-progress';
 
@@ -38,101 +40,217 @@ const getDefaultProgress = (): ExtendedWorkoutProgress => ({
 });
 
 export const useWorkoutProgress = () => {
+  const { user } = useAuth();
   const [progress, setProgress] = useState<ExtendedWorkoutProgress>(getDefaultProgress);
   const [isLoaded, setIsLoaded] = useState(false);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isInitialLoad = useRef(true);
 
   // Get current workout plan based on difficulty
   const currentPlan = getWorkoutPlan(progress.difficulty);
 
-  // Load from localStorage
+  const checkWeekComplete = useCallback((exercises: Record<string, boolean>, plan = currentPlan): boolean => {
+    const allExerciseIds = plan.flatMap(day => day.exercises.map(e => e.id));
+    return allExerciseIds.every(id => exercises[id] === true);
+  }, [currentPlan]);
+
+  // Merge and handle week reset logic
+  const processProgress = useCallback((parsed: Partial<ExtendedWorkoutProgress>): ExtendedWorkoutProgress => {
+    const currentWeekStart = formatDate(getMonday(new Date()));
+    
+    const mergedProgress: ExtendedWorkoutProgress = {
+      ...getDefaultProgress(),
+      ...parsed,
+      notes: parsed.notes || {},
+      dayStatuses: parsed.dayStatuses || {},
+      exerciseSwaps: parsed.exerciseSwaps || {},
+      totalWorkoutsCompleted: parsed.totalWorkoutsCompleted || 0,
+      longestStreak: parsed.longestStreak || 0,
+      workoutHistory: parsed.workoutHistory || [],
+      achievements: parsed.achievements || [],
+      difficulty: parsed.difficulty || 'intermediate',
+    };
+    
+    const workoutPlan = getWorkoutPlan(mergedProgress.difficulty);
+    
+    // Check if we need to reset for a new week
+    if (mergedProgress.weekStartDate !== currentWeekStart) {
+      const wasLastWeekComplete = checkWeekComplete(mergedProgress.completedExercises, workoutPlan);
+      const allExerciseIds = workoutPlan.flatMap(day => day.exercises.map(e => e.id));
+      const completedCount = allExerciseIds.filter(id => mergedProgress.completedExercises[id]).length;
+      
+      const historyEntry: WorkoutHistoryEntry = {
+        weekStartDate: mergedProgress.weekStartDate,
+        completedDays: workoutPlan.filter(day => {
+          const dayExercises = day.exercises;
+          return dayExercises.every(e => mergedProgress.completedExercises[e.id]);
+        }).length,
+        completedExercises: completedCount,
+        totalExercises: allExerciseIds.length,
+      };
+      
+      return {
+        ...mergedProgress,
+        completedExercises: {},
+        weekStartDate: currentWeekStart,
+        streak: wasLastWeekComplete ? mergedProgress.streak + 1 : 0,
+        lastCompletedWeek: wasLastWeekComplete ? mergedProgress.weekStartDate : mergedProgress.lastCompletedWeek,
+        notes: {},
+        dayStatuses: {},
+        longestStreak: Math.max(mergedProgress.longestStreak, wasLastWeekComplete ? mergedProgress.streak + 1 : mergedProgress.streak),
+        workoutHistory: [...mergedProgress.workoutHistory, historyEntry].slice(-12),
+      };
+    }
+    
+    return mergedProgress;
+  }, [checkWeekComplete]);
+
+  // Load progress from database or localStorage
   useEffect(() => {
+    const loadProgress = async () => {
+      if (user) {
+        // Load from database for logged-in users
+        const { data, error } = await supabase
+          .from('workout_progress')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Failed to load progress from database:', error);
+        }
+
+        if (data) {
+          const dbProgress: Partial<ExtendedWorkoutProgress> = {
+            completedExercises: (data.completed_exercises as unknown as Record<string, boolean>) || {},
+            notes: (data.notes as unknown as Record<string, string>) || {},
+            dayStatuses: (data.day_statuses as unknown as Record<string, DayStatus>) || {},
+            exerciseSwaps: (data.exercise_swaps as unknown as Record<string, string>) || {},
+            achievements: data.achievements || [],
+            difficulty: (data.difficulty as DifficultyLevel) || 'intermediate',
+            // These fields are stored locally only for now
+            ...getLocalOnlyFields(),
+          };
+          
+          const processed = processProgress(dbProgress);
+          setProgress(processed);
+        } else {
+          // No database record yet, check localStorage for migration
+          const localProgress = getLocalProgress();
+          if (localProgress) {
+            const processed = processProgress(localProgress);
+            setProgress(processed);
+            // Save to database
+            await saveToDatabase(processed, user.id);
+          }
+        }
+      } else {
+        // Load from localStorage for non-logged-in users
+        const localProgress = getLocalProgress();
+        if (localProgress) {
+          const processed = processProgress(localProgress);
+          setProgress(processed);
+        }
+      }
+      
+      setIsLoaded(true);
+      isInitialLoad.current = false;
+    };
+
+    loadProgress();
+  }, [user, processProgress]);
+
+  // Get local-only fields from localStorage
+  const getLocalOnlyFields = (): Partial<ExtendedWorkoutProgress> => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        const parsed: ExtendedWorkoutProgress = JSON.parse(stored);
-        const currentWeekStart = formatDate(getMonday(new Date()));
-        
-        // Ensure all new fields exist
-        const mergedProgress: ExtendedWorkoutProgress = {
-          ...getDefaultProgress(),
-          ...parsed,
-          notes: parsed.notes || {},
-          dayStatuses: parsed.dayStatuses || {},
-          exerciseSwaps: parsed.exerciseSwaps || {},
+        const parsed = JSON.parse(stored);
+        return {
+          weekStartDate: parsed.weekStartDate || formatDate(getMonday(new Date())),
+          streak: parsed.streak || 0,
+          lastCompletedWeek: parsed.lastCompletedWeek || null,
           totalWorkoutsCompleted: parsed.totalWorkoutsCompleted || 0,
           longestStreak: parsed.longestStreak || 0,
           workoutHistory: parsed.workoutHistory || [],
-          achievements: parsed.achievements || [],
-          difficulty: parsed.difficulty || 'intermediate',
+          hasSeenOnboarding: parsed.hasSeenOnboarding ?? true,
+          reminderTime: parsed.reminderTime,
+          accentColor: parsed.accentColor,
         };
-        
-        const workoutPlan = getWorkoutPlan(mergedProgress.difficulty);
-        
-        // Check if we need to reset for a new week
-        if (mergedProgress.weekStartDate !== currentWeekStart) {
-          // Save history entry for the completed week
-          const wasLastWeekComplete = checkWeekComplete(mergedProgress.completedExercises, workoutPlan);
-          const allExerciseIds = workoutPlan.flatMap(day => day.exercises.map(e => e.id));
-          const completedCount = allExerciseIds.filter(id => mergedProgress.completedExercises[id]).length;
-          
-          const historyEntry: WorkoutHistoryEntry = {
-            weekStartDate: mergedProgress.weekStartDate,
-            completedDays: workoutPlan.filter(day => {
-              const dayExercises = day.exercises;
-              return dayExercises.every(e => mergedProgress.completedExercises[e.id]);
-            }).length,
-            completedExercises: completedCount,
-            totalExercises: allExerciseIds.length,
-          };
-          
-          const newProgress: ExtendedWorkoutProgress = {
-            ...mergedProgress,
-            completedExercises: {},
-            weekStartDate: currentWeekStart,
-            streak: wasLastWeekComplete ? mergedProgress.streak + 1 : 0,
-            lastCompletedWeek: wasLastWeekComplete ? mergedProgress.weekStartDate : mergedProgress.lastCompletedWeek,
-            notes: {},
-            dayStatuses: {},
-            longestStreak: Math.max(mergedProgress.longestStreak, wasLastWeekComplete ? mergedProgress.streak + 1 : mergedProgress.streak),
-            workoutHistory: [...mergedProgress.workoutHistory, historyEntry].slice(-12),
-          };
-          setProgress(newProgress);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(newProgress));
-        } else {
-          setProgress(mergedProgress);
-        }
-      } catch (e) {
-        console.error('Failed to parse workout progress', e);
-        setProgress(getDefaultProgress());
+      } catch {
+        return {};
       }
     }
-    setIsLoaded(true);
-  }, []);
-
-  // Save to localStorage
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
-    }
-  }, [progress, isLoaded]);
-
-  const checkWeekComplete = (exercises: Record<string, boolean>, plan = currentPlan): boolean => {
-    const allExerciseIds = plan.flatMap(day => day.exercises.map(e => e.id));
-    return allExerciseIds.every(id => exercises[id] === true);
+    return {};
   };
 
+  // Get progress from localStorage
+  const getLocalProgress = (): Partial<ExtendedWorkoutProgress> | null => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
+
+  // Save to database
+  const saveToDatabase = async (data: ExtendedWorkoutProgress, userId: string) => {
+    const { error } = await supabase
+      .from('workout_progress')
+      .update({
+        completed_exercises: JSON.parse(JSON.stringify(data.completedExercises)),
+        notes: JSON.parse(JSON.stringify(data.notes)),
+        day_statuses: JSON.parse(JSON.stringify(data.dayStatuses)),
+        exercise_swaps: JSON.parse(JSON.stringify(data.exerciseSwaps)),
+        achievements: data.achievements,
+        difficulty: data.difficulty,
+        reminder_time: data.reminderTime,
+        accent_color: data.accentColor,
+      })
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Failed to save progress to database:', error);
+    }
+  };
+
+  // Debounced save to database and localStorage
+  useEffect(() => {
+    if (!isLoaded || isInitialLoad.current) return;
+
+    // Always save to localStorage
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+
+    // Debounced save to database if logged in
+    if (user) {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      saveTimeoutRef.current = setTimeout(() => {
+        saveToDatabase(progress, user.id);
+      }, 500);
+    }
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [progress, isLoaded, user]);
+
   const setDifficulty = useCallback((difficulty: DifficultyLevel) => {
-    setProgress(prev => {
-      // When changing difficulty, reset exercises but keep other progress
-      return {
-        ...prev,
-        difficulty,
-        completedExercises: {},
-        notes: {},
-        dayStatuses: {},
-        exerciseSwaps: {},
-      };
-    });
+    setProgress(prev => ({
+      ...prev,
+      difficulty,
+      completedExercises: {},
+      notes: {},
+      dayStatuses: {},
+      exerciseSwaps: {},
+    }));
   }, []);
 
   const toggleExercise = useCallback((exerciseId: string) => {
@@ -293,7 +411,6 @@ export const useWorkoutProgress = () => {
     accentColor: progress.accentColor,
     hasSeenOnboarding: progress.hasSeenOnboarding,
     markOnboardingComplete,
-    // New difficulty-related
     difficulty: progress.difficulty,
     setDifficulty,
     currentPlan,
