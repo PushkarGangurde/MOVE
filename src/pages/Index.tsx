@@ -21,6 +21,7 @@ import { OfflineIndicator } from '@/components/OfflineIndicator';
 import { PlanSelector } from '@/components/PlanSelector';
 import { InstallPrompt } from '@/components/InstallPrompt';
 import { UserMenu } from '@/components/UserMenu';
+import { SyncIndicator } from '@/components/SyncIndicator';
 import { planInfo } from '@/data/workoutPlans';
 
 const getTodayDayId = (): string => {
@@ -31,6 +32,7 @@ const getTodayDayId = (): string => {
 const Index = () => {
   const {
     isLoaded,
+    syncStatus,
     toggleExercise,
     getDayProgress,
     getWeekProgress,
@@ -163,7 +165,8 @@ const Index = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2, duration: 0.4 }}
             >
-              {/* Always visible: Plan selector */}
+              {/* Always visible: Plan selector and sync status */}
+              <SyncIndicator status={syncStatus} />
               <PlanSelector currentPlan={difficulty} onPlanChange={setDifficulty} />
               
               {/* Desktop: Show all buttons */}

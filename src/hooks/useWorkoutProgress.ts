@@ -39,11 +39,15 @@ const getDefaultProgress = (): ExtendedWorkoutProgress => ({
   difficulty: 'intermediate',
 });
 
+export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error' | 'offline';
+
 export const useWorkoutProgress = () => {
   const { user } = useAuth();
   const [progress, setProgress] = useState<ExtendedWorkoutProgress>(getDefaultProgress);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const syncResetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isInitialLoad = useRef(true);
 
   // Get current workout plan based on difficulty
@@ -208,6 +212,8 @@ export const useWorkoutProgress = () => {
 
   // Save to database
   const saveToDatabase = async (data: ExtendedWorkoutProgress, userId: string) => {
+    setSyncStatus('syncing');
+    
     const { error } = await supabase
       .from('workout_progress')
       .update({
@@ -224,6 +230,16 @@ export const useWorkoutProgress = () => {
 
     if (error) {
       console.error('Failed to save progress to database:', error);
+      setSyncStatus('error');
+    } else {
+      setSyncStatus('synced');
+      // Reset to idle after 2 seconds
+      if (syncResetTimeoutRef.current) {
+        clearTimeout(syncResetTimeoutRef.current);
+      }
+      syncResetTimeoutRef.current = setTimeout(() => {
+        setSyncStatus('idle');
+      }, 2000);
     }
   };
 
@@ -397,6 +413,7 @@ export const useWorkoutProgress = () => {
   return {
     progress,
     isLoaded,
+    syncStatus,
     toggleExercise,
     getDayProgress,
     getWeekProgress,
