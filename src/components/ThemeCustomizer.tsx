@@ -8,11 +8,11 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 const accentColors = [
+  { name: 'Amber', value: '35 80% 50%', class: 'bg-[hsl(35,80%,50%)]' },
   { name: 'Sage', value: '150 35% 45%', class: 'bg-[hsl(150,35%,45%)]' },
   { name: 'Ocean', value: '200 60% 45%', class: 'bg-[hsl(200,60%,45%)]' },
   { name: 'Lavender', value: '270 50% 55%', class: 'bg-[hsl(270,50%,55%)]' },
   { name: 'Rose', value: '350 60% 55%', class: 'bg-[hsl(350,60%,55%)]' },
-  { name: 'Amber', value: '35 80% 50%', class: 'bg-[hsl(35,80%,50%)]' },
   { name: 'Teal', value: '175 60% 40%', class: 'bg-[hsl(175,60%,40%)]' },
 ];
 
