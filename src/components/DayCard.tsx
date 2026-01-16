@@ -32,6 +32,9 @@ interface DayCardProps {
   onSkipDay?: (reason: 'rest' | 'missed') => void;
   getExerciseSwap?: (exerciseId: string) => string | null;
   onSwapExercise?: (exerciseId: string, alternativeName: string) => void;
+  getExerciseCustomReps?: (exerciseId: string) => string | null;
+  onCustomizeExerciseReps?: (exerciseId: string, reps: string) => void;
+  onResetExerciseCustomization?: (exerciseId: string) => void;
 }
 
 export const DayCard = ({
@@ -48,6 +51,9 @@ export const DayCard = ({
   onSkipDay,
   getExerciseSwap,
   onSwapExercise,
+  getExerciseCustomReps,
+  onCustomizeExerciseReps,
+  onResetExerciseCustomization,
 }: DayCardProps) => {
   const [isOpen, setIsOpen] = useState(isToday);
   const [showGuidedWorkout, setShowGuidedWorkout] = useState(false);
@@ -295,6 +301,9 @@ export const DayCard = ({
                           currentSwap={getExerciseSwap?.(exercise.id)}
                           onSwap={(alt) => onSwapExercise?.(exercise.id, alt)}
                           onResetSwap={() => onSwapExercise?.(exercise.id, '')}
+                          customReps={getExerciseCustomReps?.(exercise.id)}
+                          onCustomizeReps={(reps) => onCustomizeExerciseReps?.(exercise.id, reps)}
+                          onResetCustomization={() => onResetExerciseCustomization?.(exercise.id)}
                         />
                       </motion.div>
                     ))}

@@ -45,6 +45,9 @@ const Index = () => {
     isDaySkipped,
     swapExercise,
     getExerciseSwap,
+    customizeExerciseReps,
+    resetExerciseCustomization,
+    getExerciseCustomReps,
     achievements,
     setReminderTime,
     reminderTime,
@@ -313,6 +316,9 @@ const Index = () => {
                     onSkipDay={(reason) => skipDay(day.id, reason)}
                     getExerciseSwap={getExerciseSwap}
                     onSwapExercise={swapExercise}
+                    getExerciseCustomReps={getExerciseCustomReps}
+                    onCustomizeExerciseReps={customizeExerciseReps}
+                    onResetExerciseCustomization={resetExerciseCustomization}
                   />
                 </motion.div>
               ))}

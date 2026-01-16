@@ -25,6 +25,11 @@ export interface DayStatus {
   skippedReason?: 'rest' | 'missed';
 }
 
+export interface ExerciseCustomization {
+  swappedTo?: string; // alternative exercise name
+  customReps?: string; // custom reps/time string
+}
+
 export interface WorkoutProgress {
   completedExercises: Record<string, boolean>;
   weekStartDate: string;
@@ -32,7 +37,8 @@ export interface WorkoutProgress {
   lastCompletedWeek: string | null;
   notes: Record<string, string>; // dayId -> note
   dayStatuses: Record<string, DayStatus>; // dayId -> status
-  exerciseSwaps: Record<string, string>; // exerciseId -> alternative name
+  exerciseSwaps: Record<string, string>; // exerciseId -> alternative name (legacy)
+  exerciseCustomizations: Record<string, ExerciseCustomization>; // exerciseId -> customization
   totalWorkoutsCompleted: number;
   longestStreak: number;
   workoutHistory: WorkoutHistoryEntry[];
