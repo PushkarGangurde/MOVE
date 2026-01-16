@@ -6,6 +6,7 @@ import { Exercise } from '@/types/workout';
 import { ExerciseTimer } from './ExerciseTimer';
 import { ExerciseVideoModal } from './ExerciseVideoModal';
 import { ExerciseSwapDialog } from './ExerciseSwapDialog';
+import { ExerciseCustomizer } from './ExerciseCustomizer';
 import { getExerciseVideoId } from '@/data/exerciseVideos';
 import { getAlternatives } from '@/data/exerciseAlternatives';
 import { useCelebration } from '@/hooks/useCelebration';
@@ -17,6 +18,9 @@ interface ExerciseItemProps {
   currentSwap?: string | null;
   onSwap?: (alternativeName: string) => void;
   onResetSwap?: () => void;
+  customReps?: string | null;
+  onCustomizeReps?: (reps: string) => void;
+  onResetCustomization?: () => void;
 }
 
 // Parse time string to seconds
@@ -46,6 +50,9 @@ export const ExerciseItem = ({
   currentSwap,
   onSwap,
   onResetSwap,
+  customReps,
+  onCustomizeReps,
+  onResetCustomization,
 }: ExerciseItemProps) => {
   const [showTimer, setShowTimer] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
@@ -54,9 +61,14 @@ export const ExerciseItem = ({
   
   const alternatives = getAlternatives(exercise.name);
   const displayName = currentSwap || exercise.name;
-  const displayReps = currentSwap 
+  
+  // Get the base reps (from swap or original)
+  const baseReps = currentSwap 
     ? alternatives.find(a => a.name === currentSwap)?.reps || exercise.reps
     : exercise.reps;
+  
+  // Apply custom reps if set
+  const displayReps = customReps || baseReps;
   
   const timerDuration = parseTimeToSeconds(displayReps);
   const hasTimed = timerDuration !== null;
@@ -152,9 +164,11 @@ export const ExerciseItem = ({
           </motion.p>
           <p className={cn(
             'text-xs text-muted-foreground transition-all duration-200',
-            isCompleted && 'text-muted-foreground/60'
+            isCompleted && 'text-muted-foreground/60',
+            customReps && 'text-primary'
           )}>
             {displayReps}
+            {customReps && <span className="ml-1 text-[10px]">(custom)</span>}
           </p>
         </button>
 
@@ -164,6 +178,18 @@ export const ExerciseItem = ({
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1 }}
         >
+          {/* Exercise customizer button */}
+          {onCustomizeReps && onResetCustomization && (
+            <ExerciseCustomizer
+              exerciseId={exercise.id}
+              exerciseName={displayName}
+              defaultReps={baseReps}
+              customReps={customReps || null}
+              onCustomize={onCustomizeReps}
+              onReset={onResetCustomization}
+            />
+          )}
+
           {/* Exercise swap button */}
           {alternatives.length > 0 && onSwap && onResetSwap && (
             <ExerciseSwapDialog

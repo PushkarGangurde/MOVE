@@ -31,6 +31,7 @@ const getDefaultProgress = (): ExtendedWorkoutProgress => ({
   notes: {},
   dayStatuses: {},
   exerciseSwaps: {},
+  exerciseCustomizations: {},
   totalWorkoutsCompleted: 0,
   longestStreak: 0,
   workoutHistory: [],
@@ -68,6 +69,7 @@ export const useWorkoutProgress = () => {
       notes: parsed.notes || {},
       dayStatuses: parsed.dayStatuses || {},
       exerciseSwaps: parsed.exerciseSwaps || {},
+      exerciseCustomizations: parsed.exerciseCustomizations || {},
       totalWorkoutsCompleted: parsed.totalWorkoutsCompleted || 0,
       longestStreak: parsed.longestStreak || 0,
       workoutHistory: parsed.workoutHistory || [],
@@ -275,6 +277,7 @@ export const useWorkoutProgress = () => {
       notes: {},
       dayStatuses: {},
       exerciseSwaps: {},
+      exerciseCustomizations: {},
     }));
   }, []);
 
@@ -381,12 +384,44 @@ export const useWorkoutProgress = () => {
     setProgress(prev => ({
       ...prev,
       exerciseSwaps: { ...prev.exerciseSwaps, [exerciseId]: alternativeName },
+      exerciseCustomizations: {
+        ...prev.exerciseCustomizations,
+        [exerciseId]: { ...prev.exerciseCustomizations[exerciseId], swappedTo: alternativeName },
+      },
     }));
   }, []);
 
   const getExerciseSwap = useCallback((exerciseId: string): string | null => {
-    return progress.exerciseSwaps[exerciseId] || null;
-  }, [progress.exerciseSwaps]);
+    return progress.exerciseCustomizations[exerciseId]?.swappedTo || progress.exerciseSwaps[exerciseId] || null;
+  }, [progress.exerciseCustomizations, progress.exerciseSwaps]);
+
+  const customizeExerciseReps = useCallback((exerciseId: string, customReps: string) => {
+    setProgress(prev => ({
+      ...prev,
+      exerciseCustomizations: {
+        ...prev.exerciseCustomizations,
+        [exerciseId]: { ...prev.exerciseCustomizations[exerciseId], customReps },
+      },
+    }));
+  }, []);
+
+  const resetExerciseCustomization = useCallback((exerciseId: string) => {
+    setProgress(prev => {
+      const newCustomizations = { ...prev.exerciseCustomizations };
+      delete newCustomizations[exerciseId];
+      const newSwaps = { ...prev.exerciseSwaps };
+      delete newSwaps[exerciseId];
+      return {
+        ...prev,
+        exerciseCustomizations: newCustomizations,
+        exerciseSwaps: newSwaps,
+      };
+    });
+  }, []);
+
+  const getExerciseCustomReps = useCallback((exerciseId: string): string | null => {
+    return progress.exerciseCustomizations[exerciseId]?.customReps || null;
+  }, [progress.exerciseCustomizations]);
 
   const unlockAchievement = useCallback((achievementId: string) => {
     setProgress(prev => {
@@ -426,6 +461,9 @@ export const useWorkoutProgress = () => {
     isDaySkipped,
     swapExercise,
     getExerciseSwap,
+    customizeExerciseReps,
+    resetExerciseCustomization,
+    getExerciseCustomReps,
     unlockAchievement,
     achievements: progress.achievements,
     totalWorkoutsCompleted: progress.totalWorkoutsCompleted,
