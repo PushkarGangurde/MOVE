@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { WorkoutProgress, WorkoutHistoryEntry, DayStatus, DifficultyLevel } from '@/types/workout';
+import { WorkoutProgress, WorkoutHistoryEntry, DayStatus, DifficultyLevel, ExerciseCustomization } from '@/types/workout';
 import { getWorkoutPlan } from '@/data/workoutPlans';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -133,6 +133,7 @@ export const useWorkoutProgress = () => {
             notes: (data.notes as unknown as Record<string, string>) || {},
             dayStatuses: (data.day_statuses as unknown as Record<string, DayStatus>) || {},
             exerciseSwaps: (data.exercise_swaps as unknown as Record<string, string>) || {},
+            exerciseCustomizations: (data.exercise_customizations as unknown as Record<string, ExerciseCustomization>) || {},
             achievements: data.achievements || [],
             difficulty: (data.difficulty as DifficultyLevel) || 'intermediate',
             reminderTime: data.reminder_time || localFields.reminderTime,
@@ -223,6 +224,7 @@ export const useWorkoutProgress = () => {
         notes: JSON.parse(JSON.stringify(data.notes)),
         day_statuses: JSON.parse(JSON.stringify(data.dayStatuses)),
         exercise_swaps: JSON.parse(JSON.stringify(data.exerciseSwaps)),
+        exercise_customizations: JSON.parse(JSON.stringify(data.exerciseCustomizations)),
         achievements: data.achievements,
         difficulty: data.difficulty,
         reminder_time: data.reminderTime,
