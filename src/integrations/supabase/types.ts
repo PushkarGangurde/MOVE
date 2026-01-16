@@ -52,6 +52,7 @@ export type Database = {
           created_at: string
           day_statuses: Json
           difficulty: string
+          exercise_customizations: Json
           exercise_swaps: Json
           id: string
           notes: Json
@@ -66,6 +67,7 @@ export type Database = {
           created_at?: string
           day_statuses?: Json
           difficulty?: string
+          exercise_customizations?: Json
           exercise_swaps?: Json
           id?: string
           notes?: Json
@@ -80,6 +82,7 @@ export type Database = {
           created_at?: string
           day_statuses?: Json
           difficulty?: string
+          exercise_customizations?: Json
           exercise_swaps?: Json
           id?: string
           notes?: Json
